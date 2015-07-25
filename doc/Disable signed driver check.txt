@@ -1,0 +1,11 @@
+http://thephuck.com/end-user-computing/how-to-disable-driver-signing-requirement-in-windows-8/
+
+Enable:
+bcdedit -set loadoptions DDISABLE_INTEGRITY_CHECKS
+bcdedit -set TESTSIGNING ON
+
+Restart PC
+
+Disable:
+bcdedit /deletevalue loadoptions
+bcdedit -set TESTSIGNING OFF
