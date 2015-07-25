@@ -39,18 +39,29 @@
 /** Current memory address for FLASH/EEPROM memory read/write commands */
 uint32_t CurrentAddress;
 
+volatile uint8_t TimeoutTicksRemaining;
+
 /** Flag to indicate that the next read/write operation must update the device's current extended FLASH address */
 bool MustLoadExtendedAddress;
 
-
 /** ISR to manage timeouts whilst processing a V2Protocol command */
+#if 0
 ISR(TIMER0_COMPA_vect, ISR_NOBLOCK)
 {
 	if (TimeoutTicksRemaining)
 	  TimeoutTicksRemaining--;
 	else
-	  TCCR0B = 0;
+	  TCC0.CTRLA = TC_CLKSEL_OFF_gc;
 }
+#endif
+
+ISR(TCC0_OVF_vect)
+{
+	TimeoutTicksRemaining = 0; // Don't want to change all occurrences.
+	StopTimeoutTimer();
+	//printf("Timeout");
+}
+
 
 /** Initializes the hardware and software associated with the V2 protocol command handling. */
 void V2Protocol_Init(void)
@@ -62,10 +73,15 @@ void V2Protocol_Init(void)
 	ADC_StartReading(VTARGET_REF_MASK | ADC_RIGHT_ADJUSTED | VTARGET_ADC_CHANNEL_MASK);
 	#endif
 
+//TODO
 	/* Timeout timer initialization (~10ms period) */
-	OCR0A  = (((F_CPU / 1024) / 100) - 1);
-	TCCR0A = (1 << WGM01);
-	TIMSK0 = (1 << OCIE0A);
+	//OCR0A  = (((F_CPU / 1024) / 100) - 1);
+	//TCCR0A = (1 << WGM01);
+	//TIMSK0 = (1 << OCIE0A);
+	
+	//TCC0.CTRLA = COMMAND_TIMEOUT_PRE;
+	//TCC0.PER = COMMAND_TIMEOUT_PER;
+	TCC0.INTCTRLA =  TC_OVFINTLVL_LO_gc;
 
 	V2Params_LoadNonVolatileParamValues();
 
@@ -83,9 +99,12 @@ void V2Protocol_ProcessCommand(void)
 	uint8_t V2Command = Endpoint_Read_8();
 
 	/* Reset timeout counter duration and start the timer */
-	TimeoutTicksRemaining = COMMAND_TIMEOUT_TICKS;
-	TCCR0B = ((1 << CS02) | (1 << CS00));
+	//TimeoutTicksRemaining = COMMAND_TIMEOUT_TICKS;
+//TODO
+	//TCCR0B = ((1 << CS02) | (1 << CS00));
+	StartTimeoutTimer();
 
+	//printf("Got V2: %x\r\n", V2Command);
 	switch (V2Command)
 	{
 		case CMD_SIGN_ON:
@@ -147,11 +166,13 @@ void V2Protocol_ProcessCommand(void)
 	}
 
 	/* Disable the timeout management timer */
-	TCCR0B = 0;
+//TODO
+	//TCCR0B = 0;
+	StopTimeoutTimer();
 
 	Endpoint_WaitUntilReady();
 	Endpoint_SelectEndpoint(AVRISP_DATA_OUT_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_OUT);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_OUT);
 }
 
 /** Handler for unknown V2 protocol commands. This discards all sent data and returns a
@@ -170,7 +191,7 @@ static void V2Protocol_UnknownCommand(const uint8_t V2Command)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	Endpoint_Write_8(V2Command);
 	Endpoint_Write_8(STATUS_CMD_UNKNOWN);
@@ -180,14 +201,19 @@ static void V2Protocol_UnknownCommand(const uint8_t V2Command)
 /** Handler for the CMD_SIGN_ON command, returning the programmer ID string to the host. */
 static void V2Protocol_SignOn(void)
 {
+	//uint8_t ErrorCode;
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	Endpoint_Write_8(CMD_SIGN_ON);
 	Endpoint_Write_8(STATUS_CMD_OK);
 	Endpoint_Write_8(sizeof(PROGRAMMER_ID) - 1);
 	Endpoint_Write_Stream_LE(PROGRAMMER_ID, (sizeof(PROGRAMMER_ID) - 1), NULL);
+	//if ((ErrorCode = Endpoint_Write_Stream_LE(PROGRAMMER_ID, (sizeof(PROGRAMMER_ID) - 1), NULL)) != ENDPOINT_RWSTREAM_NoError)
+	//{
+	//	printf("Stream error %d\r\n", ErrorCode);
+	//}
 	Endpoint_ClearIN();
 }
 
@@ -198,7 +224,7 @@ static void V2Protocol_ResetProtection(void)
 {
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	Endpoint_Write_8(CMD_RESET_PROTECTION);
 	Endpoint_Write_8(STATUS_CMD_OK);
@@ -221,7 +247,7 @@ static void V2Protocol_GetSetParam(const uint8_t V2Command)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	Endpoint_Write_8(V2Command);
 
@@ -255,7 +281,7 @@ static void V2Protocol_LoadAddress(void)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	if (CurrentAddress & (1UL << 31))
 	  MustLoadExtendedAddress = true;

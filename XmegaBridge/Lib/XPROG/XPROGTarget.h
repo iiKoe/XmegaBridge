@@ -46,6 +46,13 @@
 		#include "../V2Protocol.h"
 		#include "XPROGProtocol.h"
 		#include "Config/AppConfig.h"
+		
+		/* Port */
+		#define PDI_USART	USARTC0
+		#define PDI_PORT	PORTC
+		#define PDI_RESET	PIN1_bm
+		#define PDI_RX		PIN2_bm
+		#define PDI_TX		PIN3_bm
 
 	/* Preprocessor Checks: */
 		#if ((BOARD == BOARD_XPLAIN) || (BOARD == BOARD_XPLAIN_REV1))

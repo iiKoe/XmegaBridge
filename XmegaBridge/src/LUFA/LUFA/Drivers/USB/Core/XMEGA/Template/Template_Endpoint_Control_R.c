@@ -30,59 +30,57 @@
 
 #if defined(TEMPLATE_FUNC_NAME)
 
-uint8_t TEMPLATE_FUNC_NAME (TEMPLATE_BUFFER_TYPE const Buffer,
-                            uint16_t Length,
-                            uint16_t* const BytesProcessed)
+uint8_t TEMPLATE_FUNC_NAME (void* const Buffer,
+                            uint16_t Length)
 {
-	uint8_t* DataStream      = ((uint8_t*)Buffer + TEMPLATE_BUFFER_OFFSET(Length));
-	uint16_t BytesInTransfer = 0;
-	uint8_t  ErrorCode;
+	uint8_t* DataStream = ((uint8_t*)Buffer + TEMPLATE_BUFFER_OFFSET(Length));
 
-	Pipe_SetPipeToken(TEMPLATE_TOKEN);
+	Endpoint_SelectEndpoint(USB_Endpoint_SelectedEndpoint & ~ENDPOINT_DIR_IN);
 
-	if ((ErrorCode = Pipe_WaitUntilReady()))
-	  return ErrorCode;
-
-	if (BytesProcessed != NULL)
-	{
-		Length -= *BytesProcessed;
-		TEMPLATE_BUFFER_MOVE(DataStream, *BytesProcessed);
-	}
+	if (!(Length))
+	  Endpoint_ClearOUT();
 
 	while (Length)
 	{
-		if (!(Pipe_IsReadWriteAllowed()))
-		{
-			TEMPLATE_CLEAR_PIPE();
+		uint8_t USB_DeviceState_LCL = USB_DeviceState;
 
-			if (BytesProcessed != NULL)
+		if (USB_DeviceState_LCL == DEVICE_STATE_Unattached)
+		  return ENDPOINT_RWCSTREAM_DeviceDisconnected;
+		else if (USB_DeviceState_LCL == DEVICE_STATE_Suspended)
+		  return ENDPOINT_RWCSTREAM_BusSuspended;
+		else if (Endpoint_IsSETUPReceived())
+		  return ENDPOINT_RWCSTREAM_HostAborted;
+
+		if (Endpoint_IsOUTReceived())
+		{
+			while (Length && Endpoint_BytesInEndpoint())
 			{
-				*BytesProcessed += BytesInTransfer;
-				return PIPE_RWSTREAM_IncompleteTransfer;
+				TEMPLATE_TRANSFER_BYTE(DataStream);
+				TEMPLATE_BUFFER_MOVE(DataStream, 1);
+				Length--;
 			}
 
-			if ((ErrorCode = Pipe_WaitUntilReady()))
-			  return ErrorCode;
-		}
-		else
-		{
-			TEMPLATE_TRANSFER_BYTE(DataStream);
-			TEMPLATE_BUFFER_MOVE(DataStream, 1);
-			Length--;
-			BytesInTransfer++;
+			Endpoint_ClearOUT();
 		}
 	}
 
-	return PIPE_RWSTREAM_NoError;
+	while (!(Endpoint_IsINReady()))
+	{
+		uint8_t USB_DeviceState_LCL = USB_DeviceState;
+
+		if (USB_DeviceState_LCL == DEVICE_STATE_Unattached)
+		  return ENDPOINT_RWCSTREAM_DeviceDisconnected;
+		else if (USB_DeviceState_LCL == DEVICE_STATE_Suspended)
+		  return ENDPOINT_RWCSTREAM_BusSuspended;
+	}
+
+	return ENDPOINT_RWCSTREAM_NoError;
 }
 
-#undef TEMPLATE_FUNC_NAME
-#undef TEMPLATE_BUFFER_TYPE
-#undef TEMPLATE_TOKEN
-#undef TEMPLATE_TRANSFER_BYTE
-#undef TEMPLATE_CLEAR_PIPE
 #undef TEMPLATE_BUFFER_OFFSET
 #undef TEMPLATE_BUFFER_MOVE
+#undef TEMPLATE_FUNC_NAME
+#undef TEMPLATE_TRANSFER_BYTE
 
 #endif
 

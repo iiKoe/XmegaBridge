@@ -47,13 +47,14 @@
 
 		#include "AVRISPDescriptors.h"
 		#include "Lib/V2Protocol.h"
-		#include "Lib/SoftUART.h"
+		//#include "Lib/SoftUART.h"
 		#include "Config/AppConfig.h"
 
 		#include <LUFA/Drivers/Board/LEDs.h>
 		#include <LUFA/Drivers/Misc/RingBuffer.h>
 		#include <LUFA/Drivers/USB/USB.h>
 		#include <LUFA/Platform/Platform.h>
+		#include <LUFA/Drivers/Peripheral/Serial.h>
 
 	/* Macros: */
 		/** LED mask for the library LED driver, to indicate that the USB interface is not ready. */
@@ -93,12 +94,13 @@
 		void EVENT_USB_Device_Disconnect(void);
 
 		void EVENT_CDC_Device_LineEncodingChanged(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo);
-
+#if 1
 		uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
 		                                    const uint8_t wIndex,
 		                                    const void** const DescriptorAddress,
 		                                    uint8_t* const DescriptorMemorySpace)
 		                                    ATTR_WARN_UNUSED_RESULT ATTR_NON_NULL_PTR_ARG(3) ATTR_NON_NULL_PTR_ARG(4);
+#endif
 
 #endif
 

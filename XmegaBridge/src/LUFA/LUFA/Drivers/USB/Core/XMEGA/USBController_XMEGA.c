@@ -29,7 +29,7 @@
 */
 
 #include "../../../../Common/Common.h"
-#if (ARCH == ARCH_AVR8)
+#if (ARCH == ARCH_XMEGA)
 
 #define  __INCLUDE_FROM_USB_DRIVER
 #define  __INCLUDE_FROM_USB_CONTROLLER_C
@@ -42,6 +42,9 @@ volatile uint8_t USB_CurrentMode = USB_MODE_None;
 #if !defined(USE_STATIC_OPTIONS)
 volatile uint8_t USB_Options;
 #endif
+
+/* Ugly workaround to ensure an aligned table, since __BIGGEST_ALIGNMENT__ == 1 for the 8-bit AVR-GCC toolchain */
+uint8_t USB_EndpointTable[sizeof(USB_EndpointTable_t) + 1];
 
 void USB_Init(
                #if defined(USB_CAN_BE_BOTH)
@@ -63,37 +66,29 @@ void USB_Init(
 	USB_Options = Options;
 	#endif
 
-	#if defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR)
-	/* Workaround for AVR8 bootloaders that fail to turn off the OTG pad before running
-	 * the loaded application. This causes VBUS detection to fail unless we first force
-	 * it off to reset it. */
-	USB_OTGPAD_Off();
-	#endif
+	uint_reg_t CurrentGlobalInt = GetGlobalInterruptMask();
+	GlobalInterruptDisable();
 
-	if (!(USB_Options & USB_OPT_REG_DISABLED))
-	  USB_REG_On();
+	NVM.CMD  = NVM_CMD_READ_CALIB_ROW_gc;
+	USB.CAL0 = pgm_read_byte(offsetof(NVM_PROD_SIGNATURES_t, USBCAL0));
+	USB.CAL1 = pgm_read_byte(offsetof(NVM_PROD_SIGNATURES_t, USBCAL1));
+	NVM.CMD  = NVM_CMD_NO_OPERATION_gc;
+
+	/* Ugly workaround to ensure an aligned table, since __BIGGEST_ALIGNMENT__ == 1 for the 8-bit AVR-GCC toolchain */
+	USB.EPPTR = ((intptr_t)&USB_EndpointTable[1] & ~(1 << 0));
+	USB.CTRLA = (USB_STFRNUM_bm | ((ENDPOINT_TOTAL_ENDPOINTS - 1) << USB_MAXEP_gp));
+
+	if ((USB_Options & USB_OPT_BUSEVENT_PRIHIGH) == USB_OPT_BUSEVENT_PRIHIGH)
+	  USB.INTCTRLA = (3 << USB_INTLVL_gp);
+	else if ((USB_Options & USB_OPT_BUSEVENT_PRIMED) == USB_OPT_BUSEVENT_PRIMED)
+	  USB.INTCTRLA = (2 << USB_INTLVL_gp);
 	else
-	  USB_REG_Off();
+	  USB.INTCTRLA = (1 << USB_INTLVL_gp);
 
-	if (!(USB_Options & USB_OPT_MANUAL_PLL))
-	{
-		#if defined(USB_SERIES_4_AVR)
-		PLLFRQ = (1 << PDIV2);
-		#endif
-	}
+	SetGlobalInterruptMask(CurrentGlobalInt);
 
 	#if defined(USB_CAN_BE_BOTH)
-	if (Mode == USB_MODE_UID)
-	{
-		UHWCON |=  (1 << UIDE);
-		USB_INT_Enable(USB_INT_IDTI);
-		USB_CurrentMode = USB_GetUSBModeFromUID();
-	}
-	else
-	{
-		UHWCON &= ~(1 << UIDE);
-		USB_CurrentMode = Mode;
-	}
+	USB_CurrentMode = Mode;
 	#endif
 
 	USB_IsInitialized = true;
@@ -109,81 +104,43 @@ void USB_Disable(void)
 	USB_Detach();
 	USB_Controller_Disable();
 
-	if (!(USB_Options & USB_OPT_MANUAL_PLL))
-	  USB_PLL_Off();
-
-	if (!(USB_Options & USB_OPT_REG_KEEP_ENABLED))
-	  USB_REG_Off();
-
-	#if defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR)
-	USB_OTGPAD_Off();
-	#endif
-
-	#if defined(USB_CAN_BE_BOTH)
-	USB_CurrentMode = USB_MODE_None;
-	#endif
-
 	USB_IsInitialized = false;
 }
 
 void USB_ResetInterface(void)
 {
-	#if defined(USB_CAN_BE_BOTH)
-	bool UIDModeSelectEnabled = ((UHWCON & (1 << UIDE)) != 0);
+	uint8_t PrescalerNeeded;
+
+	#if defined(USB_DEVICE_OPT_FULLSPEED)
+	if (USB_Options & USB_DEVICE_OPT_LOWSPEED)
+	  PrescalerNeeded = F_USB / 6000000;
+	else
+	  PrescalerNeeded = F_USB / 48000000;
+	#else
+	PrescalerNeeded = F_USB / 6000000;
 	#endif
+
+	uint8_t DividerIndex = 0;
+	while (PrescalerNeeded > 0)
+	{
+		DividerIndex++;
+		PrescalerNeeded >>= 1;
+	}
+
+	CLK.USBCTRL = (DividerIndex - 1) << CLK_USBPSDIV_gp;
+
+	if (USB_Options & USB_OPT_PLLCLKSRC)
+	  CLK.USBCTRL |= (CLK_USBSRC_PLL_gc   | CLK_USBSEN_bm);
+	else
+	  CLK.USBCTRL |= (CLK_USBSRC_RC32M_gc | CLK_USBSEN_bm);
+
+	USB_Device_SetDeviceAddress(0);
 
 	USB_INT_DisableAllInterrupts();
 	USB_INT_ClearAllInterrupts();
 
 	USB_Controller_Reset();
-
-	#if defined(USB_CAN_BE_BOTH)
-	if (UIDModeSelectEnabled)
-	  USB_INT_Enable(USB_INT_IDTI);
-	#endif
-
-	USB_CLK_Unfreeze();
-
-	if (USB_CurrentMode == USB_MODE_Device)
-	{
-		#if defined(USB_CAN_BE_DEVICE)
-		#if (defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR))
-		UHWCON |=  (1 << UIMOD);
-		#endif
-
-		if (!(USB_Options & USB_OPT_MANUAL_PLL))
-		{
-			#if defined(USB_SERIES_2_AVR)
-			USB_PLL_On();
-			while (!(USB_PLL_IsReady()));
-			#else
-			USB_PLL_Off();
-			#endif
-		}
-
-		USB_Init_Device();
-		#endif
-	}
-	else if (USB_CurrentMode == USB_MODE_Host)
-	{
-		#if defined(USB_CAN_BE_HOST)
-		UHWCON &= ~(1 << UIMOD);
-
-		if (!(USB_Options & USB_OPT_MANUAL_PLL))
-		{
-			#if defined(USB_CAN_BE_HOST)
-			USB_PLL_On();
-			while (!(USB_PLL_IsReady()));
-			#endif
-		}
-
-		USB_Init_Host();
-		#endif
-	}
-
-	#if (defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR))
-	USB_OTGPAD_On();
-	#endif
+	USB_Init_Device();
 }
 
 #if defined(USB_CAN_BE_DEVICE)
@@ -230,41 +187,15 @@ static void USB_Init_Device(void)
 	#endif
 	#endif
 
-	#if (defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR))
 	if (USB_Options & USB_DEVICE_OPT_LOWSPEED)
 	  USB_Device_SetLowSpeed();
 	else
 	  USB_Device_SetFullSpeed();
 
-	USB_INT_Enable(USB_INT_VBUSTI);
-	#endif
-
 	Endpoint_ConfigureEndpoint(ENDPOINT_CONTROLEP, EP_TYPE_CONTROL,
 							   USB_Device_ControlEndpointSize, 1);
 
-	USB_INT_Clear(USB_INT_SUSPI);
-	USB_INT_Enable(USB_INT_SUSPI);
-	USB_INT_Enable(USB_INT_EORSTI);
-
-	USB_Attach();
-}
-#endif
-
-#if defined(USB_CAN_BE_HOST)
-static void USB_Init_Host(void)
-{
-	USB_HostState                = HOST_STATE_Unattached;
-	USB_Host_ConfigurationNumber = 0;
-	USB_Host_ControlPipeSize     = PIPE_CONTROLPIPE_DEFAULT_SIZE;
-
-	USB_Host_HostMode_On();
-
-	USB_Host_VBUS_Auto_Off();
-	USB_Host_VBUS_Manual_Enable();
-	USB_Host_VBUS_Manual_On();
-
-	USB_INT_Enable(USB_INT_SRPI);
-	USB_INT_Enable(USB_INT_BCERRI);
+	USB_INT_Enable(USB_INT_BUSEVENTI);
 
 	USB_Attach();
 }

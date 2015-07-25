@@ -89,17 +89,20 @@ int main(void)
 {
 	SetupHardware();
 
-	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
+	//LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
 	GlobalInterruptEnable();
 
 	for (;;)
 	{
+		//CurrentFirmwareMode = MODE_USART_BRIDGE;
+		CurrentFirmwareMode = MODE_PDI_PROGRAMMER;
 		if (CurrentFirmwareMode == MODE_USART_BRIDGE)
 		  UARTBridge_Task();
 		else
 		  AVRISP_Task();
 
 		USB_USBTask();
+		
 	}
 }
 
@@ -110,7 +113,7 @@ void AVRISP_Task(void)
 	  return;
 
 	V2Params_UpdateParamValues();
-
+	//TODO
 	Endpoint_SelectEndpoint(AVRISP_DATA_OUT_EPADDR);
 
 	/* Check to see if a V2 Protocol command has been received */
@@ -140,13 +143,18 @@ void UARTBridge_Task(void)
 		if (!(ReceivedByte < 0))
 		  RingBuffer_Insert(&USBtoUART_Buffer, ReceivedByte);
 	}
+	
+	// Test case
+	//CDC_Device_SendByte(&VirtualSerial_CDC_Interface, RingBuffer_Peek(&USBtoUART_Buffer));
 
 	/* Check if the UART receive buffer flush timer has expired or buffer is nearly full */
 	uint16_t BufferCount = RingBuffer_GetCount(&UARTtoUSB_Buffer);
-	if ((TIFR0 & (1 << TOV0)) || (BufferCount > 200))
+//TODO
+	//if ((TIFR0 & (1 << TOV0)) || (BufferCount > 200))
+	if (BufferCount > 0)
 	{
 		/* Clear flush timer expiry flag */
-		TIFR0 |= (1 << TOV0);
+		//TIFR0 |= (1 << TOV0);
 
 		/* Read bytes from the USART receive buffer into the USB IN endpoint */
 		while (BufferCount--)
@@ -163,8 +171,18 @@ void UARTBridge_Task(void)
 		}
 	}
 
+	if (Serial_IsSendReady(&USARTX) && !(RingBuffer_IsEmpty(&USBtoUART_Buffer)))
+		Serial_SendByte(&USARTX, RingBuffer_Remove(&USBtoUART_Buffer));
+		
 	CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
 }
+
+static int Stdout_putchar(char c, FILE *stream) {
+	Serial_SendByte(&USARTX, c);
+	return 0;
+}
+
+FILE usartx = FDEV_SETUP_STREAM(Stdout_putchar, NULL, _FDEV_SETUP_WRITE);
 
 /** Configures the board hardware and chip peripherals for the demo's functionality. */
 void SetupHardware(void)
@@ -176,8 +194,19 @@ void SetupHardware(void)
 
 	/* Disable clock division */
 	clock_prescale_set(clock_div_1);
+#elif (ARCH == ARCH_XMEGA)
+	/* Start the PLL to multiply the 2MHz RC oscillator to 32MHz and switch the CPU core to run from it */
+	XMEGACLK_StartPLL(CLOCK_SRC_INT_RC2MHZ, 2000000, F_CPU);
+	XMEGACLK_SetCPUClockSource(CLOCK_SRC_PLL);
+
+	/* Start the 32MHz internal RC oscillator and start the DFLL to increase it to 48MHz using the USB SOF as a reference */
+	XMEGACLK_StartInternalOscillator(CLOCK_SRC_INT_RC32MHZ);
+	XMEGACLK_StartDFLL(CLOCK_SRC_INT_RC32MHZ, DFLL_REF_INT_USBSOF, F_USB);
+
+	PMIC.CTRL = PMIC_LOLVLEN_bm | PMIC_MEDLVLEN_bm | PMIC_HILVLEN_bm;
 #endif
 
+#if 0
 	/* Disable JTAG debugging */
 	MCUCR |= (1 << JTD);
 	MCUCR |= (1 << JTD);
@@ -192,47 +221,66 @@ void SetupHardware(void)
 	/* Re-enable JTAG debugging */
 	MCUCR &= ~(1 << JTD);
 	MCUCR &= ~(1 << JTD);
+#endif
+	//CurrentFirmwareMode = MODE_USART_BRIDGE; //TODO Make this usefull
 
 	/* Hardware Initialization */
-	SoftUART_Init();
+	//SoftUART_Init();
+	USARTX_PORT.DIRSET = USARTX_TX_PIN;
+	//USARTX_PORT.OUTSET = USARTX_TX_PIN;
+	Serial_Init(&USARTX, 9600, false);
+	
+	//USARTX.CTRLA = USART_DREINTLVL_LO_gc | USART_RXCINTLVL_LO_gc;
+	USARTX.CTRLA |= USART_RXCINTLVL_LO_gc;
+	stdout = &usartx;
+		
 	LEDs_Init();
+	
 	#if defined(RESET_TOGGLES_LIBUSB_COMPAT)
 	UpdateCurrentCompatibilityMode();
 	#endif
 
 	/* USB Stack Initialization */
 	USB_Init();
+	
 }
 
 /** Event handler for the library USB Configuration Changed event. */
 void EVENT_USB_Device_ConfigurationChanged(void)
 {
 	bool ConfigSuccess = true;
-
+	
 	/* Configure the device endpoints according to the selected mode */
 	if (CurrentFirmwareMode == MODE_USART_BRIDGE)
 	{
 		ConfigSuccess &= CDC_Device_ConfigureEndpoints(&VirtualSerial_CDC_Interface);
 
 		/* Configure the UART flush timer - run at Fcpu/1024 for maximum interval before overflow */
-		TCCR0B = ((1 << CS02) | (1 << CS00));
+		//TCCR0B = ((1 << CS02) | (1 << CS00));
+		//TODO
 
 		/* Initialize ring buffers used to hold serial data between USB and software UART interfaces */
 		RingBuffer_InitBuffer(&USBtoUART_Buffer, USBtoUART_Buffer_Data, sizeof(USBtoUART_Buffer_Data));
 		RingBuffer_InitBuffer(&UARTtoUSB_Buffer, UARTtoUSB_Buffer_Data, sizeof(UARTtoUSB_Buffer_Data));
 
 		/* Start the software USART */
-		SoftUART_Init();
+		//SoftUART_Init();
+		Serial_Init(&USARTX, 9600, false);
 	}
 	else
 	{
 		ConfigSuccess &= Endpoint_ConfigureEndpoint(AVRISP_DATA_OUT_EPADDR, EP_TYPE_BULK, AVRISP_DATA_EPSIZE, 1);
+		ConfigSuccess &= Endpoint_ConfigureEndpoint(AVRISP_DATA_IN_EPADDR, EP_TYPE_BULK, AVRISP_DATA_EPSIZE, 1);
 
+#if 0 // TODO
 		if ((AVRISP_DATA_IN_EPADDR & ENDPOINT_EPNUM_MASK) != (AVRISP_DATA_OUT_EPADDR & ENDPOINT_EPNUM_MASK))
 		  ConfigSuccess &= Endpoint_ConfigureEndpoint(AVRISP_DATA_IN_EPADDR, EP_TYPE_BULK, AVRISP_DATA_EPSIZE, 1);
+#endif
 
 		/* Configure the V2 protocol packet handler */
 		V2Protocol_Init();
+		//if (ConfigSuccess)
+		//	Serial_SendString(&USARTX, "New Config OK\r\n");
 	}
 
 	LEDs_SetAllLEDs(ConfigSuccess ? LEDMASK_USB_READY : LEDMASK_USB_ERROR);
@@ -264,7 +312,8 @@ void EVENT_USB_Device_Disconnect(void)
 void EVENT_CDC_Device_LineEncodingChanged(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo)
 {
 	/* Change the software UART's baud rate to match the new baud rate */
-	SoftUART_SetBaud(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS);
+	//SoftUART_SetBaud(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS);
+	Serial_Init(&USARTX, CDCInterfaceInfo->State.LineEncoding.BaudRateBPS, false);
 }
 
 /** This function is called by the library when in device mode, and must be overridden (see library "USB Descriptors"
@@ -280,6 +329,8 @@ void EVENT_CDC_Device_LineEncodingChanged(USB_ClassInfo_CDC_Device_t* const CDCI
  *
  *  \return Length of the retrieved descriptor in bytes, or NO_DESCRIPTOR if the descriptor was not found
  */
+//TODO
+#if 1
 uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
                                     const uint8_t wIndex,
                                     const void** const DescriptorAddress,
@@ -291,4 +342,15 @@ uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
 	else
 	  return AVRISP_GetDescriptor(wValue, wIndex, DescriptorAddress, DescriptorMemorySpace);
 }
+#endif
 
+/*! \brief Receive complete interrupt service routine.
+*/
+ISR(USARTX_RXC_vect)
+{
+	//uint8_t ReceivedByte = Serial_ReceiveByte(&USARTX);
+	uint8_t ReceivedByte = USARTX.DATA;
+
+	if ((USB_DeviceState == DEVICE_STATE_Configured) && !(RingBuffer_IsFull(&UARTtoUSB_Buffer)))
+		RingBuffer_Insert(&UARTtoUSB_Buffer, ReceivedByte);
+}

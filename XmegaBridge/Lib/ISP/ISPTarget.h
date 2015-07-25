@@ -94,9 +94,13 @@
 		static inline void ISPTarget_SendByte(const uint8_t Byte)
 		{
 			if (HardwareSPIMode)
-			  SPI_SendByte(Byte);
+				#if (ARCH == ARCH_XMEGA)
+				SPI_SendByte(&ISP_SPI, Byte);
+				#else
+				SPI_SendByte(Byte);
+				#endif
 			else
-			  ISPTarget_TransferSoftSPIByte(Byte);
+				ISPTarget_TransferSoftSPIByte(Byte);
 		}
 
 		/** Receives a byte of ISP data from the attached target, using the appropriate
@@ -109,9 +113,13 @@
 			uint8_t ReceivedByte;
 
 			if (HardwareSPIMode)
-			  ReceivedByte = SPI_ReceiveByte();
+				#if (ARCH == ARCH_XMEGA)
+				ReceivedByte = SPI_ReceiveByte(&ISP_SPI);
+				#else
+				ReceivedByte = SPI_ReceiveByte();
+				#endif
 			else
-			  ReceivedByte = ISPTarget_TransferSoftSPIByte(0x00);
+				ReceivedByte = ISPTarget_TransferSoftSPIByte(0x00);
 
 			#if defined(INVERTED_ISP_MISO)
 			return ~ReceivedByte;
@@ -132,9 +140,13 @@
 			uint8_t ReceivedByte;
 
 			if (HardwareSPIMode)
-			  ReceivedByte = SPI_TransferByte(Byte);
+				#if (ARCH == ARCH_XMEGA)
+				ReceivedByte = SPI_TransferByte(&ISP_SPI, Byte);
+				#else
+				ReceivedByte = SPI_TransferByte(Byte);
+				#endif				 
 			else
-			  ReceivedByte = ISPTarget_TransferSoftSPIByte(Byte);
+				ReceivedByte = ISPTarget_TransferSoftSPIByte(Byte);
 
 			#if defined(INVERTED_ISP_MISO)
 			return ~ReceivedByte;

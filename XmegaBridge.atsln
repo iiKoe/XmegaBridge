@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Atmel Studio Solution File, Format Version 11.00
-Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "XmegaBridge", "XmegaBridge\XmegaBridge.cproj", "{724C4714-3901-4041-932C-735BD7C7B992}"
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "XmegaBridge", "XmegaBridge\XmegaBridge.cproj", "{C51B7E18-0B81-42BB-9BD3-1F3B37C6D940}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,10 +9,10 @@ Global
 		Release|AVR = Release|AVR
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{724C4714-3901-4041-932C-735BD7C7B992}.Debug|AVR.ActiveCfg = Debug|AVR
-		{724C4714-3901-4041-932C-735BD7C7B992}.Debug|AVR.Build.0 = Debug|AVR
-		{724C4714-3901-4041-932C-735BD7C7B992}.Release|AVR.ActiveCfg = Release|AVR
-		{724C4714-3901-4041-932C-735BD7C7B992}.Release|AVR.Build.0 = Release|AVR
+		{C51B7E18-0B81-42BB-9BD3-1F3B37C6D940}.Debug|AVR.ActiveCfg = Debug|AVR
+		{C51B7E18-0B81-42BB-9BD3-1F3B37C6D940}.Debug|AVR.Build.0 = Debug|AVR
+		{C51B7E18-0B81-42BB-9BD3-1F3B37C6D940}.Release|AVR.ActiveCfg = Release|AVR
+		{C51B7E18-0B81-42BB-9BD3-1F3B37C6D940}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

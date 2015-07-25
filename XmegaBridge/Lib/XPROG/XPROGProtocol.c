@@ -66,7 +66,7 @@ void XPROGProtocol_SetMode(void)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	XPROG_SelectedProtocol = SetMode_XPROG_Params.Protocol;
 
@@ -82,6 +82,7 @@ void XPROGProtocol_Command(void)
 {
 	uint8_t XPROGCommand = Endpoint_Read_8();
 
+	//printf("GotXPROG: %x\r\n", XPROGCommand);
 	switch (XPROGCommand)
 	{
 		case XPROG_CMD_ENTER_PROGMODE:
@@ -113,7 +114,7 @@ static void XPROGProtocol_EnterXPROGMode(void)
 {
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	bool NVMBusEnabled = false;
 
@@ -135,7 +136,7 @@ static void XPROGProtocol_LeaveXPROGMode(void)
 {
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	if (XPROG_SelectedProtocol == XPROG_PROTOCOL_PDI)
 	  XMEGANVM_DisablePDI();
@@ -170,7 +171,7 @@ static void XPROGProtocol_Erase(void)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	uint8_t EraseCommand;
 
@@ -261,7 +262,7 @@ static void XPROGProtocol_WriteMemory(void)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	if (XPROG_SelectedProtocol == XPROG_PROTOCOL_PDI)
 	{
@@ -343,7 +344,7 @@ static void XPROGProtocol_ReadMemory(void)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	uint8_t ReadBuffer[256];
 
@@ -386,7 +387,7 @@ static void XPROGProtocol_ReadCRC(void)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	uint32_t MemoryCRC;
 
@@ -468,7 +469,7 @@ static void XPROGProtocol_SetParam(void)
 
 	Endpoint_ClearOUT();
 	Endpoint_SelectEndpoint(AVRISP_DATA_IN_EPADDR);
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
+	//Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
 
 	Endpoint_Write_8(CMD_XPROG);
 	Endpoint_Write_8(XPROG_CMD_SET_PARAM);

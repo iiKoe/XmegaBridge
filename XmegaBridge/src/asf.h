@@ -52,23 +52,8 @@
  * running the ASF driver selector tool. Any changes will be discarded.
  */
 
-// From module: LUFA ADC Driver - AVR8
-#include <LUFA/Drivers/Peripheral/ADC.h>
-
-// From module: LUFA AT45DB642D Dataflash Commands
-#include <LUFA/Drivers/Misc/AT45DB642D.h>
-
-// From module: LUFA Board Buttons Driver
-#include <LUFA/Drivers/Board/Buttons.h>
-
-// From module: LUFA Board Dataflash Driver
-#include <LUFA/Drivers/Board/Dataflash.h>
-
-// From module: LUFA Board Hardware Information Driver
-#include <LUFA/Drivers/Board/Board.h>
-
-// From module: LUFA Board Joystick Driver
-#include <LUFA/Drivers/Board/Joystick.h>
+// From module: LUFA ANSI Terminal Commands
+#include <LUFA/Drivers/Misc/TerminalCodes.h>
 
 // From module: LUFA Board LED Driver
 #include <LUFA/Drivers/Board/LEDs.h>
@@ -77,14 +62,17 @@
 #include <LUFA/Common/Common.h>
 #include <LUFA/Version.h>
 
-// From module: LUFA Platform Specific Support - AVR8
+// From module: LUFA Platform Specific Support - XMEGA
 #include <LUFA/Platform/Platform.h>
 
 // From module: LUFA Ring Buffer
 #include <LUFA/Drivers/Misc/RingBuffer.h>
 
-// From module: LUFA SPI Driver - AVR8
+// From module: LUFA SPI Driver - XMEGA
 #include <LUFA/Drivers/Peripheral/SPI.h>
+
+// From module: LUFA USART Driver - AVR8
+#include <LUFA/Drivers/Peripheral/Serial.h>
 
 // From module: LUFA USB Driver
 #include <LUFA/Drivers/USB/USB.h>

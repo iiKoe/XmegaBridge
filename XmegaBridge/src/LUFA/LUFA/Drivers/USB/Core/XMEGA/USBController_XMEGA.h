@@ -29,24 +29,24 @@
 */
 
 /** \file
- *  \brief USB Controller definitions for the AVR8 microcontrollers.
- *  \copydetails Group_USBManagement_AVR8
+ *  \brief USB Controller definitions for the AVR XMEGA microcontrollers.
+ *  \copydetails Group_USBManagement_XMEGA
  *
  *  \note This file should not be included directly. It is automatically included as needed by the USB driver
  *        dispatch header located in LUFA/Drivers/USB/USB.h.
  */
 
 /** \ingroup Group_USBManagement
- *  \defgroup Group_USBManagement_AVR8 USB Interface Management (AVR8)
- *  \brief USB Controller definitions for the AVR8 microcontrollers.
+ *  \defgroup Group_USBManagement_XMEGA USB Interface Management (XMEGA)
+ *  \brief USB Controller definitions for the AVR XMEGA microcontrollers.
  *
  *  Functions, macros, variables, enums and types related to the setup and management of the USB interface.
  *
  *  @{
  */
 
-#ifndef __USBCONTROLLER_AVR8_H__
-#define __USBCONTROLLER_AVR8_H__
+#ifndef __USBCONTROLLER_XMEGA_H__
+#define __USBCONTROLLER_XMEGA_H__
 
 	/* Includes: */
 		#include "../../../../Common/Common.h"
@@ -55,14 +55,31 @@
 		#include "../USBTask.h"
 		#include "../USBInterrupt.h"
 
-		#if defined(USB_CAN_BE_HOST) || defined(__DOXYGEN__)
-			#include "../Host.h"
-			#include "../OTG.h"
-			#include "../Pipe.h"
-			#include "../HostStandardReq.h"
-			#include "../PipeStream.h"
-		#endif
+	/* Private Interface - For use in library only: */
+	#if !defined(__DOXYGEN__)
+		/* Macros: */
+			#if defined(MAX_ENDPOINT_INDEX)
+				#define ENDPOINT_TABLE_COUNT  (MAX_ENDPOINT_INDEX + 1)
+			#else
+				#define ENDPOINT_TABLE_COUNT  16
+			#endif
 
+		/* Type Defines: */
+			typedef struct
+			{
+				struct
+				{
+					USB_EP_t OUT;
+					USB_EP_t IN;
+				} Endpoints[ENDPOINT_TABLE_COUNT];
+				uint16_t FrameNum;
+			} ATTR_PACKED USB_EndpointTable_t;
+
+		/* External Variables: */
+			extern uint8_t USB_EndpointTable[];
+	#endif
+
+	/* Includes: */
 		#if defined(USB_CAN_BE_DEVICE) || defined(__DOXYGEN__)
 			#include "../Device.h"
 			#include "../Endpoint.h"
@@ -84,74 +101,34 @@
 			#error F_USB is not defined. You must define F_USB to the frequency of the unprescaled USB controller clock in your project makefile.
 		#endif
 
-		#if (F_USB == 8000000)
-			#if (defined(__AVR_AT90USB82__) || defined(__AVR_AT90USB162__) || \
-			     defined(__AVR_ATmega8U2__) || defined(__AVR_ATmega16U2__) || \
-			     defined(__AVR_ATmega32U2__))
-				#define USB_PLL_PSC                0
-			#elif (defined(__AVR_ATmega16U4__) || defined(__AVR_ATmega32U4__))
-				#define USB_PLL_PSC                0
-			#elif (defined(__AVR_AT90USB646__)  || defined(__AVR_AT90USB1286__))
-				#define USB_PLL_PSC                ((1 << PLLP1) | (1 << PLLP0))
-			#elif (defined(__AVR_AT90USB647__)  || defined(__AVR_AT90USB1287__))
-				#define USB_PLL_PSC                ((1 << PLLP1) | (1 << PLLP0))
-			#endif
-		#elif (F_USB == 16000000)
-			#if (defined(__AVR_AT90USB82__) || defined(__AVR_AT90USB162__) || \
-			     defined(__AVR_ATmega8U2__) || defined(__AVR_ATmega16U2__) || \
-			     defined(__AVR_ATmega32U2__))
-				#define USB_PLL_PSC                (1 << PLLP0)
-			#elif (defined(__AVR_ATmega16U4__) || defined(__AVR_ATmega32U4__))
-				#define USB_PLL_PSC                (1 << PINDIV)
-			#elif (defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB647__))
-				#define USB_PLL_PSC                ((1 << PLLP2) | (1 << PLLP1))
-			#elif (defined(__AVR_AT90USB1286__) || defined(__AVR_AT90USB1287__))
-				#define USB_PLL_PSC                ((1 << PLLP2) | (1 << PLLP0))
-			#endif
-		#endif
-
-		#if !defined(USB_PLL_PSC)
-			#error No PLL prescale value available for chosen F_USB value and AVR model.
+		#if ((F_USB % 6000000) || (F_USB < 6000000))
+			#error Invalid F_USB specified. F_USB must be a multiple of 6MHz for USB Low Speed operation, and a multiple of 48MHz for Full Speed operation.
 		#endif
 
 	/* Public Interface - May be used in end-application: */
 		/* Macros: */
 			/** \name USB Controller Option Masks */
 			//@{
-			/** Regulator disable option mask for \ref USB_Init(). This indicates that the internal 3.3V USB data pad
-			 *  regulator should be disabled and the AVR's VCC level used for the data pads.
-			 *
-			 *  \note See USB AVR data sheet for more information on the internal pad regulator.
+			/** Sets the USB bus interrupt priority level to be low priority. The USB bus interrupt is used for Start of Frame events, bus suspend
+			 *  and resume events, bus reset events and other events related to the management of the USB bus.
 			 */
-			#define USB_OPT_REG_DISABLED               (1 << 1)
+			#define USB_OPT_BUSEVENT_PRILOW           ((0 << 2) | (0 << 1))
 
-			/** Regulator enable option mask for \ref USB_Init(). This indicates that the internal 3.3V USB data pad
-			 *  regulator should be enabled to regulate the data pin voltages from the VBUS level down to a level within
-			 *  the range allowable by the USB standard.
-			 *
-			 *  \note See USB AVR data sheet for more information on the internal pad regulator.
+			/** Sets the USB bus interrupt priority level to be medium priority. The USB bus interrupt is used for Start of Frame events, bus suspend
+			 *  and resume events, bus reset events and other events related to the management of the USB bus.
 			 */
-			#define USB_OPT_REG_ENABLED                (0 << 1)
+			#define USB_OPT_BUSEVENT_PRIMED           ((0 << 2) | (1 << 1))
 
-			/** Option mask for \ref USB_Init() to keep regulator enabled at all times. Indicates that \ref USB_Disable()
-			 *  should not disable the regulator as it would otherwise. Has no effect if regulator is disabled using
-			 *  \ref USB_OPT_REG_DISABLED.
-			 *
-			 *  \note See USB AVR data sheet for more information on the internal pad regulator.
+			/** Sets the USB bus interrupt priority level to be high priority. The USB bus interrupt is used for Start of Frame events, bus suspend
+			 *  and resume events, bus reset events and other events related to the management of the USB bus.
 			 */
-			#define USB_OPT_REG_KEEP_ENABLED           (1 << 3)
+			#define USB_OPT_BUSEVENT_PRIHIGH          ((1 << 2) | (0 << 1))
 
-			/** Manual PLL control option mask for \ref USB_Init(). This indicates to the library that the user application
-			 *  will take full responsibility for controlling the AVR's PLL (used to generate the high frequency clock
-			 *  that the USB controller requires) and ensuring that it is locked at the correct frequency for USB operations.
-			 */
-			#define USB_OPT_MANUAL_PLL                 (1 << 2)
+			/** Sets the USB controller to source its clock from the internal RC 32MHz clock, once it has been DFLL calibrated to 48MHz. */
+			#define USB_OPT_RC32MCLKSRC               (0 << 3)
 
-			/** Automatic PLL control option mask for \ref USB_Init(). This indicates to the library that the library should
-			 *  take full responsibility for controlling the AVR's PLL (used to generate the high frequency clock
-			 *  that the USB controller requires) and ensuring that it is locked at the correct frequency for USB operations.
-			 */
-			#define USB_OPT_AUTO_PLL                   (0 << 2)
+			/** Sets the USB controller to source its clock from the internal PLL. */
+			#define USB_OPT_PLLCLKSRC                 (1 << 3)
 			//@}
 
 			#if !defined(USB_STREAM_TIMEOUT_MS) || defined(__DOXYGEN__)
@@ -166,20 +143,6 @@
 			#endif
 
 		/* Inline Functions: */
-			#if defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR) || defined(__DOXYGEN__)
-				/** Determines if the VBUS line is currently high (i.e. the USB host is supplying power).
-				 *
-				 *  \note This function is not available on some AVR models which do not support hardware VBUS monitoring.
-				 *
-				 *  \return Boolean \c true if the VBUS line is currently detecting power from a host, \c false otherwise.
-				 */
-				static inline bool USB_VBUS_GetStatus(void) ATTR_WARN_UNUSED_RESULT ATTR_ALWAYS_INLINE;
-				static inline bool USB_VBUS_GetStatus(void)
-				{
-					return ((USBSTA & (1 << VBUS)) ? true : false);
-				}
-			#endif
-
 			/** Detaches the device from the USB bus. This has the effect of removing the device from any
 			 *  attached host, ceasing USB communications. If no host is present, this prevents any host from
 			 *  enumerating the device once attached until \ref USB_Attach() is called.
@@ -187,7 +150,7 @@
 			static inline void USB_Detach(void) ATTR_ALWAYS_INLINE;
 			static inline void USB_Detach(void)
 			{
-				UDCON  |=  (1 << DETACH);
+				USB.CTRLB &= ~USB_ATTACH_bm;
 			}
 
 			/** Attaches the device to the USB bus. This announces the device's presence to any attached
@@ -201,7 +164,7 @@
 			static inline void USB_Attach(void) ATTR_ALWAYS_INLINE;
 			static inline void USB_Attach(void)
 			{
-				UDCON  &= ~(1 << DETACH);
+				USB.CTRLB |= USB_ATTACH_bm;
 			}
 
 		/* Function Prototypes: */
@@ -314,110 +277,28 @@
 	#if !defined(__DOXYGEN__)
 		/* Function Prototypes: */
 			#if defined(__INCLUDE_FROM_USB_CONTROLLER_C)
-				#if defined(USB_CAN_BE_DEVICE)
 				static void USB_Init_Device(void);
-				#endif
-
-				#if defined(USB_CAN_BE_HOST)
-				static void USB_Init_Host(void);
-				#endif
 			#endif
 
 		/* Inline Functions: */
-			static inline void USB_PLL_On(void) ATTR_ALWAYS_INLINE;
-			static inline void USB_PLL_On(void)
-			{
-				PLLCSR = USB_PLL_PSC;
-				PLLCSR = (USB_PLL_PSC | (1 << PLLE));
-			}
-
-			static inline void USB_PLL_Off(void) ATTR_ALWAYS_INLINE;
-			static inline void USB_PLL_Off(void)
-			{
-				PLLCSR = 0;
-			}
-
-			static inline bool USB_PLL_IsReady(void) ATTR_WARN_UNUSED_RESULT ATTR_ALWAYS_INLINE;
-			static inline bool USB_PLL_IsReady(void)
-			{
-				return ((PLLCSR & (1 << PLOCK)) ? true : false);
-			}
-
-			static inline void USB_REG_On(void) ATTR_ALWAYS_INLINE;
-			static inline void USB_REG_On(void)
-			{
-			#if defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR)
-				UHWCON |=  (1 << UVREGE);
-			#else
-				REGCR  &= ~(1 << REGDIS);
-			#endif
-			}
-
-			static inline void USB_REG_Off(void) ATTR_ALWAYS_INLINE;
-			static inline void USB_REG_Off(void)
-			{
-			#if defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR)
-				UHWCON &= ~(1 << UVREGE);
-			#else
-				REGCR  |=  (1 << REGDIS);
-			#endif
-			}
-
-			#if defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR)
-			static inline void USB_OTGPAD_On(void) ATTR_ALWAYS_INLINE;
-			static inline void USB_OTGPAD_On(void)
-			{
-				USBCON |=  (1 << OTGPADE);
-			}
-
-			static inline void USB_OTGPAD_Off(void) ATTR_ALWAYS_INLINE;
-			static inline void USB_OTGPAD_Off(void)
-			{
-				USBCON &= ~(1 << OTGPADE);
-			}
-			#endif
-
-			static inline void USB_CLK_Freeze(void) ATTR_ALWAYS_INLINE;
-			static inline void USB_CLK_Freeze(void)
-			{
-				USBCON |=  (1 << FRZCLK);
-			}
-
-			static inline void USB_CLK_Unfreeze(void) ATTR_ALWAYS_INLINE;
-			static inline void USB_CLK_Unfreeze(void)
-			{
-				USBCON &= ~(1 << FRZCLK);
-			}
-
 			static inline void USB_Controller_Enable(void) ATTR_ALWAYS_INLINE;
 			static inline void USB_Controller_Enable(void)
 			{
-				USBCON |=  (1 << USBE);
+				USB.CTRLA |=  USB_ENABLE_bm;
 			}
 
 			static inline void USB_Controller_Disable(void) ATTR_ALWAYS_INLINE;
 			static inline void USB_Controller_Disable(void)
 			{
-				USBCON &= ~(1 << USBE);
+				USB.CTRLA &= ~USB_ENABLE_bm;
 			}
 
 			static inline void USB_Controller_Reset(void) ATTR_ALWAYS_INLINE;
 			static inline void USB_Controller_Reset(void)
 			{
-				USBCON &= ~(1 << USBE);
-				USBCON |=  (1 << USBE);
+				USB.CTRLA &= ~USB_ENABLE_bm;
+				USB.CTRLA |=  USB_ENABLE_bm;
 			}
-
-			#if defined(USB_CAN_BE_BOTH)
-			static inline uint8_t USB_GetUSBModeFromUID(void) ATTR_WARN_UNUSED_RESULT ATTR_ALWAYS_INLINE;
-			static inline uint8_t USB_GetUSBModeFromUID(void)
-			{
-				if (USBSTA & (1 << ID))
-				  return USB_MODE_Device;
-				else
-				  return USB_MODE_Host;
-			}
-			#endif
 
 	#endif
 

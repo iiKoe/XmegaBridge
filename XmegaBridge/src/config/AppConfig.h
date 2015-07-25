@@ -43,10 +43,10 @@
 #ifndef _APP_CONFIG_H_
 #define _APP_CONFIG_H_
 
-	#define AUX_LINE_PORT              PORTB
-	#define AUX_LINE_PIN               PINB
-	#define AUX_LINE_DDR               DDRB
-	#define AUX_LINE_MASK              (1 << 4)
+	//#define AUX_LINE_PORT              PORTB
+	//#define AUX_LINE_PIN               PINB
+	//#define AUX_LINE_DDR               DDRB
+	//#define AUX_LINE_MASK              (1 << 4)
 
 //	#define ENABLE_ISP_PROTOCOL
 	#define ENABLE_XPROG_PROTOCOL
@@ -63,4 +63,12 @@
 //	#define RESET_TOGGLES_LIBUSB_COMPAT
 //	#define FIRMWARE_VERSION_MINOR     0x11
 
+	#define ISP_SPI			SPIC
+	
+	#define USARTX			USARTC1
+	#define USARTX_RXC_vect	USARTC1_RXC_vect
+	#define USARTX_DRE_vect	USARTC1_DRE_vect
+	#define	USARTX_PORT		PORTC
+	#define USARTX_TX_PIN	PIN7_bm
+	
 #endif

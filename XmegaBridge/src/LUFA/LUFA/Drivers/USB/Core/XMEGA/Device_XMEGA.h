@@ -29,24 +29,24 @@
 */
 
 /** \file
- *  \brief USB Device definitions for the AVR8 microcontrollers.
- *  \copydetails Group_Device_AVR8
+ *  \brief USB Device definitions for the AVR XMEGA microcontrollers.
+ *  \copydetails Group_Device_XMEGA
  *
  *  \note This file should not be included directly. It is automatically included as needed by the USB driver
  *        dispatch header located in LUFA/Drivers/USB/USB.h.
  */
 
 /** \ingroup Group_Device
- *  \defgroup Group_Device_AVR8 Device Management (AVR8)
- *  \brief USB Device definitions for the AVR8 microcontrollers.
+ *  \defgroup Group_Device_XMEGA Device Management (XMEGA)
+ *  \brief USB Device definitions for the AVR XMEGA microcontrollers.
  *
- *  Architecture specific USB Device definitions for the Atmel 8-bit AVR microcontrollers.
+ *  Architecture specific USB Device definitions for the Atmel AVR XMEGA microcontrollers.
  *
  *  @{
  */
 
-#ifndef __USBDEVICE_AVR8_H__
-#define __USBDEVICE_AVR8_H__
+#ifndef __USBDEVICE_XMEGA_H__
+#define __USBDEVICE_XMEGA_H__
 
 	/* Includes: */
 		#include "../../../../Common/Common.h"
@@ -81,29 +81,26 @@
 		/* Macros: */
 			/** \name USB Device Mode Option Masks */
 			//@{
-			#if defined(USB_SERIES_4_AVR) || defined(USB_SERIES_6_AVR) || defined(USB_SERIES_7_AVR) || defined(__DOXYGEN__)
-				/** Mask for the Options parameter of the \ref USB_Init() function. This indicates that the
-				 *  USB interface should be initialized in low speed (1.5Mb/s) mode.
-				 *
-				 *  \note Low Speed mode is not available on all USB AVR models.
-				 *        \n
-				 *
-				 *  \note Restrictions apply on the number, size and type of endpoints which can be used
-				 *        when running in low speed mode - please refer to the USB 2.0 specification.
-				 */
-				#define USB_DEVICE_OPT_LOWSPEED            (1 << 0)
-			#endif
-
 			/** Mask for the Options parameter of the \ref USB_Init() function. This indicates that the
-			 *  USB interface should be initialized in full speed (12Mb/s) mode.
+			 *  USB interface should be initialized in low speed (1.5Mb/s) mode.
+			 *
+			 *  \note Low Speed mode is not available on all USB AVR models.
+			 *        \n
+			 *
+			 *  \note Restrictions apply on the number, size and type of endpoints which can be used
+			 *        when running in low speed mode - refer to the USB 2.0 specification.
 			 */
-			#define USB_DEVICE_OPT_FULLSPEED               (0 << 0)
+			#define USB_DEVICE_OPT_LOWSPEED        (1 << 0)
+
+			#if (F_USB > 6000000)
+				/** Mask for the Options parameter of the \ref USB_Init() function. This indicates that the
+				 *  USB interface should be initialized in full speed (12Mb/s) mode.
+				 */
+				#define USB_DEVICE_OPT_FULLSPEED   (0 << 0)
+			#endif
 			//@}
 
-			#if (!defined(NO_INTERNAL_SERIAL) && \
-			     (defined(USB_SERIES_7_AVR) || defined(USB_SERIES_6_AVR) || \
-			      defined(USB_SERIES_4_AVR) || defined(USB_SERIES_2_AVR) || \
-				  defined(__DOXYGEN__)))
+			#if (!defined(NO_INTERNAL_SERIAL) || defined(__DOXYGEN__))
 				/** String descriptor index for the device's unique serial number string descriptor within the device.
 				 *  This unique serial number is used by the host to associate resources to the device (such as drivers or COM port
 				 *  number allocations) to a device regardless of the port it is plugged in to on the host. Some microcontrollers contain
@@ -118,12 +115,12 @@
 				/** Length of the device's unique internal serial number, in bits, if present on the selected microcontroller
 				 *  model.
 				 */
-				#define INTERNAL_SERIAL_LENGTH_BITS    80
+				#define INTERNAL_SERIAL_LENGTH_BITS    (8 * (1 + (offsetof(NVM_PROD_SIGNATURES_t, COORDY1) - offsetof(NVM_PROD_SIGNATURES_t, LOTNUM0))))
 
 				/** Start address of the internal serial number, in the appropriate address space, if present on the selected microcontroller
 				 *  model.
 				 */
-				#define INTERNAL_SERIAL_START_ADDRESS  0x0E
+				#define INTERNAL_SERIAL_START_ADDRESS  offsetof(NVM_PROD_SIGNATURES_t, LOTNUM0)
 			#else
 				#define USE_INTERNAL_SERIAL            NO_DESCRIPTOR
 
@@ -138,16 +135,16 @@
 			 *  Typically, this is implemented so that HID devices (mice, keyboards, etc.) can wake up the
 			 *  host computer when the host has suspended all USB devices to enter a low power state.
 			 *
-			 *  \attention This function should only be used if the device has indicated to the host that it
-			 *             supports the Remote Wakeup feature in the device descriptors, and should only be
-			 *             issued if the host is currently allowing remote wakeup events from the device (i.e.,
-			 *             the \ref USB_Device_RemoteWakeupEnabled flag is set). When the \c NO_DEVICE_REMOTE_WAKEUP
-			 *             compile time option is used, this function is unavailable.
-			 *             \n\n
+			 *  \note This function should only be used if the device has indicated to the host that it
+			 *        supports the Remote Wakeup feature in the device descriptors, and should only be
+			 *        issued if the host is currently allowing remote wakeup events from the device (i.e.,
+			 *        the \ref USB_Device_RemoteWakeupEnabled flag is set). When the \c NO_DEVICE_REMOTE_WAKEUP
+			 *        compile time option is used, this function is unavailable.
+			 *        \n\n
 			 *
-			 *  \attention The USB clock must be running for this function to operate. If the stack is initialized with
-			 *             the \ref USB_OPT_MANUAL_PLL option enabled, the user must ensure that the PLL is running
-			 *             before attempting to call this function.
+			 *  \note The USB clock must be running for this function to operate. If the stack is initialized with
+			 *        the \ref USB_OPT_MANUAL_PLL option enabled, the user must ensure that the PLL is running
+			 *        before attempting to call this function.
 			 *
 			 *  \see \ref Group_StdDescriptors for more information on the RMWAKEUP feature and device descriptors.
 			 */
@@ -162,72 +159,69 @@
 			static inline uint16_t USB_Device_GetFrameNumber(void) ATTR_ALWAYS_INLINE ATTR_WARN_UNUSED_RESULT;
 			static inline uint16_t USB_Device_GetFrameNumber(void)
 			{
-				return UDFNUM;
+				return ((USB_EndpointTable_t*)USB.EPPTR)->FrameNum;
 			}
 
 			#if !defined(NO_SOF_EVENTS)
-				/** Enables the device mode Start Of Frame events. When enabled, this causes the
-				 *  \ref EVENT_USB_Device_StartOfFrame() event to fire once per millisecond, synchronized to the USB bus,
-				 *  at the start of each USB frame when enumerated in device mode.
-				 *
-				 *  \note This function is not available when the \c NO_SOF_EVENTS compile time token is defined.
-				 */
-				static inline void USB_Device_EnableSOFEvents(void) ATTR_ALWAYS_INLINE;
-				static inline void USB_Device_EnableSOFEvents(void)
-				{
-					USB_INT_Enable(USB_INT_SOFI);
-				}
+			/** Enables the device mode Start Of Frame events. When enabled, this causes the
+			 *  \ref EVENT_USB_Device_StartOfFrame() event to fire once per millisecond, synchronized to the USB bus,
+			 *  at the start of each USB frame when enumerated in device mode.
+			 *
+			 *  \note This function is not available when the \c NO_SOF_EVENTS compile time token is defined.
+			 */
+			static inline void USB_Device_EnableSOFEvents(void) ATTR_ALWAYS_INLINE;
+			static inline void USB_Device_EnableSOFEvents(void)
+			{
+				USB.INTCTRLA |=  USB_SOFIE_bm;
+			}
 
-				/** Disables the device mode Start Of Frame events. When disabled, this stops the firing of the
-				 *  \ref EVENT_USB_Device_StartOfFrame() event when enumerated in device mode.
-				 *
-				 *  \note This function is not available when the \c NO_SOF_EVENTS compile time token is defined.
-				 */
-				static inline void USB_Device_DisableSOFEvents(void) ATTR_ALWAYS_INLINE;
-				static inline void USB_Device_DisableSOFEvents(void)
-				{
-					USB_INT_Disable(USB_INT_SOFI);
-				}
+			/** Disables the device mode Start Of Frame events. When disabled, this stops the firing of the
+			 *  \ref EVENT_USB_Device_StartOfFrame() event when enumerated in device mode.
+			 *
+			 *  \note This function is not available when the \c NO_SOF_EVENTS compile time token is defined.
+			 */
+			static inline void USB_Device_DisableSOFEvents(void) ATTR_ALWAYS_INLINE;
+			static inline void USB_Device_DisableSOFEvents(void)
+			{
+				USB.INTCTRLA &= ~USB_SOFIE_bm;
+			}
 			#endif
 
 	/* Private Interface - For use in library only: */
 	#if !defined(__DOXYGEN__)
 		/* Inline Functions: */
-			#if defined(USB_DEVICE_OPT_LOWSPEED)
 			static inline void USB_Device_SetLowSpeed(void) ATTR_ALWAYS_INLINE;
 			static inline void USB_Device_SetLowSpeed(void)
 			{
-				UDCON |=  (1 << LSM);
+				USB.CTRLA &= ~USB_SPEED_bm;
 			}
 
 			static inline void USB_Device_SetFullSpeed(void) ATTR_ALWAYS_INLINE;
 			static inline void USB_Device_SetFullSpeed(void)
 			{
-				UDCON &= ~(1 << LSM);
+				USB.CTRLA |=  USB_SPEED_bm;
 			}
-			#endif
 
 			static inline void USB_Device_SetDeviceAddress(const uint8_t Address) ATTR_ALWAYS_INLINE;
 			static inline void USB_Device_SetDeviceAddress(const uint8_t Address)
 			{
-				UDADDR = (UDADDR & (1 << ADDEN)) | (Address & 0x7F);
+				(void)Address;
+
+				/* No implementation for XMEGA architecture */
 			}
 
 			static inline void USB_Device_EnableDeviceAddress(const uint8_t Address) ATTR_ALWAYS_INLINE;
 			static inline void USB_Device_EnableDeviceAddress(const uint8_t Address)
 			{
-				(void)Address;
-
-				UDADDR |= (1 << ADDEN);
+				USB.ADDR = Address;
 			}
 
 			static inline bool USB_Device_IsAddressSet(void) ATTR_ALWAYS_INLINE ATTR_WARN_UNUSED_RESULT;
 			static inline bool USB_Device_IsAddressSet(void)
 			{
-				return (UDADDR & (1 << ADDEN));
+				return ((USB.ADDR != 0) ? true : false);
 			}
 
-			#if (USE_INTERNAL_SERIAL != NO_DESCRIPTOR)
 			static inline void USB_Device_GetSerialString(uint16_t* const UnicodeString) ATTR_NON_NULL_PTR_ARG(1);
 			static inline void USB_Device_GetSerialString(uint16_t* const UnicodeString)
 			{
@@ -238,7 +232,11 @@
 
 				for (uint8_t SerialCharNum = 0; SerialCharNum < (INTERNAL_SERIAL_LENGTH_BITS / 4); SerialCharNum++)
 				{
-					uint8_t SerialByte = boot_signature_byte_get(SigReadAddress);
+					uint8_t SerialByte;
+
+					NVM.CMD    = NVM_CMD_READ_CALIB_ROW_gc;
+					SerialByte = pgm_read_byte(SigReadAddress);
+					NVM.CMD    = 0;
 
 					if (SerialCharNum & 0x01)
 					{
@@ -254,7 +252,6 @@
 
 				SetGlobalInterruptMask(CurrentGlobalInt);
 			}
-			#endif
 
 	#endif
 

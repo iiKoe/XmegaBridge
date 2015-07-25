@@ -77,10 +77,13 @@
 		#define PROGRAMMER_ID              "AVRISP_MK2"
 
 		/** Timeout period for each issued command from the host before it is aborted (in 10ms ticks). */
-		#define COMMAND_TIMEOUT_TICKS      100
+		//#define COMMAND_TIMEOUT_TICKS   100
+		#define COMMAND_TIMEOUT_PRE		TC_CLKSEL_DIV1024_gc
+		#define COMMAND_TIMEOUT_PER		31250
 
 		/** Command timeout ticks remaining counter, GPIOR for speed. */
-		#define TimeoutTicksRemaining      GPIOR1
+		//#define TimeoutTicksRemaining      GPIOR1
+		extern volatile uint8_t TimeoutTicksRemaining;
 
 		/** MUX mask for the VTARGET ADC channel number. */
 		#define VTARGET_ADC_CHANNEL_MASK   ADC_GET_CHANNEL_MASK(VTARGET_ADC_CHANNEL)
@@ -100,6 +103,16 @@
 			static void V2Protocol_ResetProtection(void);
 			static void V2Protocol_LoadAddress(void);
 		#endif
+		
+		static inline void StartTimeoutTimer(void) {
+			TimeoutTicksRemaining = 1;
+			TCC0.CTRLA = COMMAND_TIMEOUT_PRE;
+			TCC0.PER = COMMAND_TIMEOUT_PER;
+		}
+
+		static inline void StopTimeoutTimer(void) {
+			TCC0.CTRLA = TC_CLKSEL_OFF_gc;
+		}
 
 #endif
 

@@ -29,7 +29,7 @@
 */
 
 #include "../../../../Common/Common.h"
-#if (ARCH == ARCH_AVR8)
+#if (ARCH == ARCH_XMEGA)
 
 #define  __INCLUDE_FROM_USB_DRIVER
 #include "../USBMode.h"
@@ -40,18 +40,10 @@
 
 void USB_Device_SendRemoteWakeup(void)
 {
-	if (!(USB_Options & USB_OPT_MANUAL_PLL))
-	{
-		USB_PLL_On();
-		while (!(USB_PLL_IsReady()));
-	}
-
-	USB_CLK_Unfreeze();
-
-	UDCON |= (1 << RMWKUP);
-	while (UDCON & (1 << RMWKUP));
+	USB.CTRLB |= USB_RWAKEUP_bm;
 }
 
 #endif
 
 #endif
+
