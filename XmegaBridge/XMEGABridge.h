@@ -47,7 +47,6 @@
 
 		#include "AVRISPDescriptors.h"
 		#include "Lib/V2Protocol.h"
-		//#include "Lib/SoftUART.h"
 		#include "Config/AppConfig.h"
 
 		#include <LUFA/Drivers/Board/LEDs.h>
@@ -55,6 +54,8 @@
 		#include <LUFA/Drivers/USB/USB.h>
 		#include <LUFA/Platform/Platform.h>
 		#include <LUFA/Drivers/Peripheral/Serial.h>
+		
+		#include "asf.h"
 
 	/* Macros: */
 		/** LED mask for the library LED driver, to indicate that the USB interface is not ready. */

@@ -36,8 +36,14 @@
 
 #include "XMEGABridge.h"
 
+/* Function Prototypes */
+static void Sleep_Init(void);
+static inline void Sleep_Now(void);
+
 /** Current firmware mode, making the device behave as either a programmer or a USART bridge */
 bool CurrentFirmwareMode = MODE_USART_BRIDGE;
+
+static volatile bool Wakeup = false;
 
 /** LUFA CDC Class driver interface configuration and state information. This structure is
  *  passed to all CDC Class driver functions, so that multiple instances of the same class
@@ -205,6 +211,8 @@ void SetupHardware(void)
 		
 	LEDs_Init();
 	
+	Sleep_Init();
+	
 	#if defined(RESET_TOGGLES_LIBUSB_COMPAT)
 	UpdateCurrentCompatibilityMode();
 	#endif
@@ -303,6 +311,29 @@ uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
 	  return AVRISP_GetDescriptor(wValue, wIndex, DescriptorAddress, DescriptorMemorySpace);
 }
 
+
+static void Sleep_Init(void)
+{
+	WAKEUP_PORT.DIRCLR = WAKEUP_PIN;
+	WAKEUP_PORT.INTCTRL = WAKEUP_ILVL;
+	WAKEUP_PORT.WAKEUP_IMASK = WAKEUP_PIN;
+	WAKEUP_PORT.WAKEUP_PINCTRL = PORT_ISC_RISING_gc;
+	
+#ifdef SLEEP_MODE_ENABLED
+	sleep_set_mode(SLEEP_SMODE_PDOWN_gc);
+#endif /* SLEEP_MODE_ENABLED */
+}
+
+static inline void Sleep_Now(void)
+{
+#ifdef SLEEP_MODE_ENABLED
+	sleep_enable();
+	sleep_enter(); 
+	/* Zzzz */
+	sleep_disable();
+#endif /* SLEEP_MODE_ENABLED */
+}
+
 /*! \brief Receive complete interrupt service routine.
 */
 ISR(USARTX_RXC_vect)
@@ -312,4 +343,17 @@ ISR(USARTX_RXC_vect)
 
 	if ((USB_DeviceState == DEVICE_STATE_Configured) && !(RingBuffer_IsFull(&UARTtoUSB_Buffer)))
 		RingBuffer_Insert(&UARTtoUSB_Buffer, ReceivedByte);
+}
+
+ISR(WAKEUP_vect)
+{
+	if (Wakeup == true)
+	{
+		// Wakeup!!
+		Wakeup = false;
+	}
+	else
+	{
+		// Normal int.
+	}
 }

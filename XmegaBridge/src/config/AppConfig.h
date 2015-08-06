@@ -71,4 +71,17 @@
 	#define	USARTX_PORT		PORTC
 	#define USARTX_TX_PIN	PIN7_bm
 	
+			
+	/* Sleep and Wakeup: */
+	#define WAKEUP_PORT		PORTD
+	#define WAKEUP_PIN		PIN3_bm
+	#define WAKEUP_vect		PORTE_INT0_vect
+	#define WAKEUP_ILVL		PORT_INT0LVL_LO_gc
+	#define WAKEUP_IMASK	INT0MASK
+	#define WAKEUP_PINCTRL	PIN3CTRL
+			
+	#define SLEEP_MODE		SLEEP_SMODE_PDOWN_gc
+			
+	#define	SLEEP_MODE_ENABLED
+	
 #endif
