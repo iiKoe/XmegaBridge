@@ -319,7 +319,7 @@
       <Value>F_CPU=32000000UL</Value>
       <Value>F_USB=48000000UL</Value>
       <Value>ARCH=ARCH_XMEGA</Value>
-      <Value>BOARD=BOARD_NONE</Value>
+      <Value>BOARD=BOARD_JDBXMEGA</Value>
       <Value>USE_LUFA_CONFIG_HEADER</Value>
     </ListValues>
   </avrgcc.compiler.symbols.DefSymbols>
@@ -391,6 +391,8 @@
     <Folder Include="src\LUFA\LUFA\Common\" />
     <Folder Include="src\LUFA\LUFA\Drivers\" />
     <Folder Include="src\LUFA\LUFA\Drivers\Board\" />
+    <Folder Include="src\LUFA\LUFA\Drivers\Board\XMEGA" />
+    <Folder Include="src\LUFA\LUFA\Drivers\Board\XMEGA\JDBXMEGA" />
     <Folder Include="src\LUFA\LUFA\Drivers\Misc\" />
     <Folder Include="src\LUFA\LUFA\Drivers\Peripheral\" />
     <Folder Include="src\LUFA\LUFA\Drivers\Peripheral\XMEGA\" />
@@ -591,6 +593,9 @@
     <None Include="src\ASF\xmega\utils\assembler\gas.h">
       <SubType>compile</SubType>
     </None>
+    <Compile Include="src\LUFA\LUFA\Drivers\Board\XMEGA\JDBXMEGA\LEDs.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\LUFA\LUFA\Drivers\Peripheral\XMEGA\Serial_XMEGA.c">
       <SubType>compile</SubType>
     </Compile>

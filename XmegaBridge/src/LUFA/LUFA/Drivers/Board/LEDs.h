@@ -207,6 +207,8 @@
 			#include "AVR8/YUN/LEDs.h"
 		#elif (BOARD == BOARD_MICRO)
 			#include "AVR8/MICRO/LEDs.h"
+		#elif (BOARD == BOARD_JDBXMEGA)
+			#include "XMEGA/JDBXMEGA/LEDs.h"
 		#else
 			#include "Board/LEDs.h"
 		#endif
