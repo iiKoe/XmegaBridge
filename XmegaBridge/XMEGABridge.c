@@ -38,12 +38,22 @@
 
 /* Function Prototypes */
 static void Sleep_Init(void);
+static inline void Sleep_Check(void);
 static inline void Sleep_Now(void);
+static void Button_Init(void);
+static bool GetStartupFirmwareMode(void);
+static void SetupButtonInterrupt(void);
+static void BTimer_Init(void);
+static inline void BTimer_Start(void);
+static inline void BTimer_Stop(void);
+//static void JumpToBootloader(void);
 
 /** Current firmware mode, making the device behave as either a programmer or a USART bridge */
 bool CurrentFirmwareMode = MODE_USART_BRIDGE;
 
-static volatile bool Wakeup = false;
+static volatile bool GoSleep = false;
+static volatile bool JumpToBoot = false;
+static volatile uint8_t TimeCount = 0;
 
 /** LUFA CDC Class driver interface configuration and state information. This structure is
  *  passed to all CDC Class driver functions, so that multiple instances of the same class
@@ -95,20 +105,24 @@ int main(void)
 {
 	SetupHardware();
 
-	//LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
+	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
 	GlobalInterruptEnable();
+	CurrentFirmwareMode = GetStartupFirmwareMode();
+	
+	SetupButtonInterrupt();
 
 	for (;;)
 	{
-		//CurrentFirmwareMode = MODE_USART_BRIDGE;
-		CurrentFirmwareMode = MODE_PDI_PROGRAMMER;
 		if (CurrentFirmwareMode == MODE_USART_BRIDGE)
 		  UARTBridge_Task();
 		else
 		  AVRISP_Task();
 
-		USB_USBTask();
+		USB_USBTask();	
+		Sleep_Check();
 		
+		//if (JumpToBoot == true)
+		//	JumpToBootloader();
 	}
 }
 
@@ -146,8 +160,10 @@ void UARTBridge_Task(void)
 		int16_t ReceivedByte = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
 
 		/* Read bytes from the USB OUT endpoint into the UART transmit buffer */
-		if (!(ReceivedByte < 0))
+		if (!(ReceivedByte < 0)) {
 		  RingBuffer_Insert(&USBtoUART_Buffer, ReceivedByte);
+		  LEDs_ToggleLEDs(LEDS_LED1);
+		}
 	}
 	
 	/* Check if the UART receive buffer flush timer has expired or buffer is nearly full */
@@ -170,13 +186,15 @@ void UARTBridge_Task(void)
 			}
 
 			/* Dequeue the already sent byte from the buffer now we have confirmed that no transmission error occurred */
-			RingBuffer_Remove(&UARTtoUSB_Buffer);
+			RingBuffer_Remove(&UARTtoUSB_Buffer);	
+			LEDs_ToggleLEDs(LEDS_LED1);
 		}
 	}
 
 	if (Serial_IsSendReady(&USARTX) && !(RingBuffer_IsEmpty(&USBtoUART_Buffer)))
 		Serial_SendByte(&USARTX, RingBuffer_Remove(&USBtoUART_Buffer));
 		
+	LEDs_TurnOffLEDs(LEDS_LED1);
 	CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
 }
 
@@ -210,8 +228,9 @@ void SetupHardware(void)
 	stdout = &usartx;
 		
 	LEDs_Init();
-	
 	Sleep_Init();
+	Button_Init();
+	BTimer_Init();
 	
 	#if defined(RESET_TOGGLES_LIBUSB_COMPAT)
 	UpdateCurrentCompatibilityMode();
@@ -317,28 +336,82 @@ static void Sleep_Init(void)
 	WAKEUP_PORT.DIRCLR = WAKEUP_PIN;
 	WAKEUP_PORT.INTCTRL = WAKEUP_ILVL;
 	WAKEUP_PORT.WAKEUP_IMASK = WAKEUP_PIN;
-	WAKEUP_PORT.WAKEUP_PINCTRL = PORT_ISC_RISING_gc;
+	WAKEUP_PORT.WAKEUP_PINCTRL = PORT_ISC_BOTHEDGES_gc;
 	
-#ifdef SLEEP_MODE_ENABLED
 	sleep_set_mode(SLEEP_SMODE_PDOWN_gc);
-#endif /* SLEEP_MODE_ENABLED */
+}
+
+static inline void Sleep_Check(void)
+{
+	if (GoSleep == true)
+	{
+		GoSleep = false;
+		Sleep_Now();
+	}
 }
 
 static inline void Sleep_Now(void)
 {
-#ifdef SLEEP_MODE_ENABLED
+	LEDs_ToggleLEDs(LEDS_LED1);
 	sleep_enable();
 	sleep_enter(); 
 	/* Zzzz */
 	sleep_disable();
-#endif /* SLEEP_MODE_ENABLED */
+	LEDs_ToggleLEDs(LEDS_LED1);
 }
+
+static void Button_Init(void)
+{
+	BUTTON_PORT.BUTTON_PIN_CTRL = PORT_OPC_PULLUP_gc;
+	BUTTON_PORT.DIRCLR = BUTTON_PIN;
+	BUTTON_PORT.BUTTON_IMASK = BUTTON_PIN;
+	BUTTON_PORT.WAKEUP_PINCTRL = PORT_ISC_BOTHEDGES_gc;
+	/* Dont use interrupt for now */
+	BUTTON_PORT.INTCTRL = PORT_INT1LVL_OFF_gc;
+}
+
+static bool GetStartupFirmwareMode(void)
+{
+	bool mode = MODE_USART_BRIDGE;
+	
+	Delay_MS(BUTTON_STARTUP_DELAY_MS);
+	if (~BUTTON_PORT.IN & BUTTON_PIN)
+		Delay_MS(50);
+		if (~BUTTON_PORT.IN & BUTTON_PIN)
+			mode = MODE_PDI_PROGRAMMER;
+	
+	return mode;
+}
+
+static void SetupButtonInterrupt(void)
+{
+	BUTTON_PORT.INTCTRL = BUTTON_ILVL;
+}
+
+static void BTimer_Init(void)
+{
+	BTIMER.PER = BTIMER_PER;
+	BTIMER.CTRLA = BTIMER_PRESC;
+	BTIMER.INTCTRLA = TC_OVFINTLVL_OFF_gc;
+}
+
+static inline void BTimer_Start(void)
+{
+	BTIMER.CNT = 0;
+	BTIMER.INTCTRLA = BTIMER_ILVL;
+}
+
+static inline void BTimer_Stop(void)
+{
+	BTIMER.INTCTRLA = TC_OVFINTLVL_OFF_gc;
+}
+
+
 
 /*! \brief Receive complete interrupt service routine.
 */
 ISR(USARTX_RXC_vect)
 {
-	//uint8_t ReceivedByte = Serial_ReceiveByte(&USARTX);
 	uint8_t ReceivedByte = USARTX.DATA;
 
 	if ((USB_DeviceState == DEVICE_STATE_Configured) && !(RingBuffer_IsFull(&UARTtoUSB_Buffer)))
@@ -347,13 +420,46 @@ ISR(USARTX_RXC_vect)
 
 ISR(WAKEUP_vect)
 {
-	if (Wakeup == true)
+	if (WAKEUP_PORT.IN & WAKEUP_PIN)
 	{
 		// Wakeup!!
-		Wakeup = false;
 	}
 	else
 	{
-		// Normal int.
+		GoSleep = true;
 	}
 }
+
+ISR(BUTTON_vect)
+{
+	// Start timer to determine what the user wants.
+	if (~BUTTON_PORT.IN & BUTTON_PIN)
+	{
+		// Button pressed.
+		if (CurrentFirmwareMode == MODE_USART_BRIDGE)
+			CurrentFirmwareMode = MODE_PDI_PROGRAMMER;
+		else
+			CurrentFirmwareMode = MODE_USART_BRIDGE;
+			
+	}
+	else
+	{
+		// Button released.
+	}
+}
+
+ISR(BTIMER_vect)
+{
+	TimeCount++;
+}
+
+#if 0
+static void JumpToBootloader(void)
+{
+	USB_Disable();
+	Delay_MS(3000);
+	cli();
+	EIND = BOOT_SECTION_START>>17;
+	((void (*)(void))BOOTLOADER_START_ADDRESS)();
+}
+#endif

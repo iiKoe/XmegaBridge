@@ -72,16 +72,35 @@
 	#define USARTX_TX_PIN	PIN7_bm
 	
 			
-	/* Sleep and Wakeup: */
+	/* Sleep and Wakeup */
 	#define WAKEUP_PORT		PORTD
 	#define WAKEUP_PIN		PIN3_bm
-	#define WAKEUP_vect		PORTE_INT0_vect
+	#define WAKEUP_vect		PORTD_INT0_vect
 	#define WAKEUP_ILVL		PORT_INT0LVL_LO_gc
 	#define WAKEUP_IMASK	INT0MASK
 	#define WAKEUP_PINCTRL	PIN3CTRL
 			
 	#define SLEEP_MODE		SLEEP_SMODE_PDOWN_gc
-			
-	#define	SLEEP_MODE_ENABLED
+	
+	/* PDI Button */
+	#define BUTTON_PORT		PORTD
+	#define BUTTON_PIN		PIN2_bm
+	#define BUTTON_PIN_CTRL PIN2CTRL
+	
+	#define BUTTON_STARTUP_DELAY_MS 200
+	
+	/* Use PDI button after startup */
+	#define BUTTON_vect		PORTD_INT1_vect
+	#define BUTTON_ILVL		PORT_INT1LVL_LO_gc
+	#define BUTTON_IMASK	INT1MASK
+	
+	/* PDI Button Timer */
+	#define BTIMER			TCC1
+	#define BTIMER_PER		6250
+	#define BTIMER_PRESC	TC_CLKSEL_DIV1024_gc
+	#define BTIMER_ILVL		TC_OVFINTLVL_LO_gc
+	#define BTIMER_vect		TCC1_OVF_vect
+	
+	#define BOOTLOADER_START_ADDRESS (BOOT_SECTION_START/2 + 0x1FC/2)
 	
 #endif

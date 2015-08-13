@@ -23,12 +23,12 @@ extern "C" {
 	#error Do not include this file directly. Include LUFA/Drivers/Board/LEDS.h instead.
 	#endif
 	
-	#define LEDS_PORT		PORTB
+	#define LEDS_PORT		PORTA
 
 	/* Public Interface - May be used in end-application: */
 	/* Macros: */
 	/** LED mask for the first LED on the board. */
-	#define LEDS_LED1        (1 << 6)
+	#define LEDS_LED1        PIN6_bm
 
 	/** LED mask for all the LEDs on the board. */
 	#define LEDS_ALL_LEDS    LEDS_LED1
