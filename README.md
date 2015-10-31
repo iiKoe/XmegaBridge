@@ -5,6 +5,10 @@ XmegaBridge is a port of the XPLAINBrige code in the LUFA library to work on ATx
 The original code can be found here: https://github.com/abcminiuser/lufa/tree/master/Projects/XPLAINBridge
 More information about the original XPLAINED board can be found here: http://www.fourwalledcubicle.com/XPLAIN.php
 
+NB
+--------------
+The code is functional, but needs cleaning up and optimized. There are some issues with speed caused by buffering etc. I will fix this eventually...
+
 Goal
 --------------
 The XmegaBrige project allows for the xmega device to act as a PDI programmer, or as a USB to Serial converter using the USB CDC class.
